@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Графік Прибирань</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #e0e0e0;
+        }
+
+        input[type="submit"] {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 24px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #successMessage {
+            display: block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            margin: 15px auto;
+            max-width: 400px;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out, visibility 0s 0.5s;
+        }
+
+        @media (max-width: 600px) {
+            table, th, td {
+                font-size: 14px;
+            }
+
+            input[type="submit"] {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDTqQbagHh-HLAdNI56wEsgayUSNcmDJyg",
+            authDomain: "webkv-6a265.firebaseapp.com",
+            projectId: "webkv-6a265",
+            storageBucket: "webkv-6a265.appspot.com",
+            messagingSenderId: "261103939337",
+            appId: "1:261103939337:web:7981bbce2a277693026dd8",
+            measurementId: "G-3QQR2K785N"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const startDate = new Date('2025-05-13');
+        const daysToGenerate = 60;
+        const rooms = ['Кімната 1', 'Кімната 2', 'Кімната 3'];
+        const entries = [];
+
+        // Форматування дати: dd.mm.yyyy
+        function formatDate(date) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}.${month}.${year}`;
+        }
+
+        for (let i = 0; i < daysToGenerate; i += 2) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+
+            const roomIndex = (i / 2) % 3;
+            const room = rooms[roomIndex];
+            const formattedDate = formatDate(date);
+            const storageKey = date.toISOString().split('T')[0] + '_' + room;
+
+            entries.push({ date, formattedDate, room, storageKey });
+        }
+
+        const tableBody = document.addEventListener("DOMContentLoaded", async () => {
+            const tbody = document.querySelector('tbody');
+
+            for (const entry of entries) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.formattedDate}</td>
+                    <td>${entry.room}</td>
+                    <td><input type="checkbox" id="${entry.storageKey}"></td>
+                `;
+                tbody.appendChild(row);
+
+                const checkbox = document.getElementById(entry.storageKey);
+                const docRef = doc(db, 'cleaning_schedule', entry.storageKey);
+
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    checkbox.checked = docSnap.data().is_cleaned;
+                }
+            }
+
+            document.getElementById('cleaningForm').addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                for (const entry of entries) {
+                    const checkbox = document.getElementById(entry.storageKey);
+                    const isCleaned = checkbox.checked;
+                    const docRef = doc(db, 'cleaning_schedule', entry.storageKey);
+
+                    try {
+                        await setDoc(docRef, { is_cleaned: isCleaned });
+                    } catch (error) {
+                        console.error("Помилка збереження: ", error);
+                    }
+                }
+
+                showSuccessMessage();
+            });
+        });
+
+        function showSuccessMessage() {
+            const successMessage = document.getElementById('successMessage');
+            successMessage.style.visibility = 'visible';
+            successMessage.style.opacity = '1';
+            setTimeout(() => {
+                successMessage.style.opacity = '0';
+                successMessage.style.visibility = 'hidden';
+            }, 3000);
+        }
+    </script>
+</head>
+<body>
+    <div id="successMessage">Зміни збережено!</div>
+
+    <h2>Графік Прибирань (травень–липень 2025)</h2>
+    <form id="cleaningForm">
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Кімната</th>
+                    <th>Прибрано</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Рядки додаються скриптом -->
+            </tbody>
+        </table>
+        <input type="submit" value="Зберегти">
+    </form>
+</body>
+</html>
+
